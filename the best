@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursed Calendar Timer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom font for the timer */
+        .font-cinzel {
+            font-family: 'Cinzel Decorative', cursive;
+        }
+
+        /* Main container for the dark, ruinous atmosphere */
+        body {
+            background-color: #1a1a1a;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(50, 40, 30, 0.4) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(30, 40, 50, 0.4) 0%, transparent 40%);
+            overflow: hidden; /* Hide overflow to keep elements contained */
+            position: relative;
+            touch-action: none; /* Prevents scrolling on touch devices while dragging */
+        }
+
+        /* The crumbling temple wall background with vines */
+        #temple-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://www.transparenttextures.com/patterns/cracks.png'), 
+                              url('https://www.transparenttextures.com/patterns/worn-dots.png');
+            background-color: #383428;
+            opacity: 0.2;
+            z-index: -2;
+        }
+
+        /* Flickering torchlight effect overlay */
+        #torchlight-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, rgba(255, 165, 0, 0.25) 0%, rgba(0,0,0,0.8) 70%);
+            animation: flicker 4s infinite alternate;
+            z-index: -1;
+        }
+
+        /* Animation for the torchlight flicker */
+        @keyframes flicker {
+            0% { 
+                background: radial-gradient(ellipse at 45% 45%, rgba(255, 165, 0, 0.2) 0%, rgba(0,0,0,0.7) 60%);
+                opacity: 0.8; 
+            }
+            25% { 
+                background: radial-gradient(ellipse at 50% 55%, rgba(255, 165, 0, 0.25) 0%, rgba(0,0,0,0.75) 65%);
+                opacity: 1; 
+            }
+            50% { 
+                background: radial-gradient(ellipse at 55% 40%, rgba(255, 165, 0, 0.22) 0%, rgba(0,0,0,0.8) 70%);
+                opacity: 0.85; 
+            }
+            75% { 
+                background: radial-gradient(ellipse at 40% 50%, rgba(255, 165, 0, 0.28) 0%, rgba(0,0,0,0.78) 60%);
+                opacity: 0.95; 
+            }
+            100% { 
+                background: radial-gradient(ellipse at 50% 50%, rgba(255, 165, 0, 0.2) 0%, rgba(0,0,0,0.7) 65%);
+                opacity: 0.8; 
+            }
+        }
+        
+        /* The main calendar container is now the interactive element */
+        #calendar-container {
+            cursor: pointer;
+        }
+
+        /* The main calendar image styling */
+        #calendar-image {
+            filter: drop-shadow(0 0 25px rgba(0,0,0,0.9));
+            transition: transform 0.05s linear; /* Faster transition for smooth dragging */
+            transform-origin: center;
+        }
+        
+        /* Styling for the timer display in the center */
+        #timer-display {
+            text-shadow: 0 0 8px rgba(0, 0, 0, 1), 0 0 15px rgba(255, 165, 0, 0.6);
+            color: #FFD700; /* Gold color to match the coin */
+            user-select: none; /* Prevent text selection */
+            pointer-events: none; /* Make sure clicks go through to the container */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans relative">
+    <div id="temple-background"></div>
+    <div id="torchlight-overlay"></div>
+
+    <main class="flex flex-col lg:flex-row items-center justify-center gap-8 z-10 w-full max-w-6xl">
+
+        <!-- The Aztec Calendar is now the main control -->
+        <div id="calendar-container" class="relative flex items-center justify-center w-full max-w-sm md:max-w-md lg:max-w-lg">
+            <img id="calendar-image" 
+                 src="https://defythegrid.com/wp-content/uploads/2024/07/dg_cop_az_5oz_rev_600x600_png.png" 
+                 alt="Aztec Calendar" 
+                 class="w-full h-auto"
+                 onerror="this.onerror=null; this.src='https://placehold.co/500x500/3a362b/ffffff?text=Calendar+Not+Found';">
+            
+            <!-- Timer Display -->
+            <div id="timer-display" class="absolute font-cinzel text-6xl md:text-7xl font-bold tracking-widest">
+                10:00
+            </div>
+        </div>
+
+    </main>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element References ---
+            const timerDisplay = document.getElementById('timer-display');
+            const calendarContainer = document.getElementById('calendar-container');
+            const calendarImage = document.getElementById('calendar-image');
+
+            // --- State Variables ---
+            const TOTAL_TIME = 600; // 10 minutes in seconds
+            let timeLeft = TOTAL_TIME;
+            let timerInterval = null;
+            let isPaused = true;
+            let currentRotation = 0;
+            const rotationPerSecond = 360 / TOTAL_TIME; 
+
+            // --- Dragging / Rewind State ---
+            let isDragging = false;
+            let wasDragged = false; // Differentiates a drag from a click
+            let lastAngle = 0;
+            let center = { x: 0, y: 0 };
+
+            // --- Audio Synthesis with Tone.js ---
+            const stoneGrind = new Tone.NoiseSynth({
+                noise: { type: 'brown' },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }
+            }).toDestination();
+            stoneGrind.volume.value = -10;
+
+            const tribalDrum = new Tone.MembraneSynth({ /* ... audio setup ... */ }).toDestination();
+            tribalDrum.volume.value = -8;
+            const drumPattern = new Tone.Sequence((time, note) => { tribalDrum.triggerAttackRelease(note, '8n', time); }, ['C2', ['C2', 'G1'], 'G1', ['C2', 'G1']], '2n').start(0);
+            const eerieFlute = new Tone.Synth({ /* ... audio setup ... */ }).toDestination();
+            eerieFlute.volume.value = -20;
+            const flutePattern = new Tone.Sequence((time, note) => { eerieFlute.triggerAttackRelease(note, '1n', time); }, [['E4', 'G4'], 'A4', ['C5', 'A4'], 'G4'], '1m').start('1m');
+            const jungleAmbience = new Tone.NoiseSynth({ /* ... audio setup ... */ }).toDestination();
+            jungleAmbience.volume.value = -35;
+            const ambienceLoop = new Tone.Loop(time => { jungleAmbience.triggerAttackRelease('4m', time); }, '3m').start(0);
+            
+            const collapseSound = () => { /* ... audio setup ... */ };
+
+            // --- Core Timer Functions ---
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                return `${String(minutes).padStart(2, '0')}:${String(Math.round(remainingSeconds)).padStart(2, '0')}`;
+            }
+
+            function updateDisplay() {
+                timerDisplay.textContent = formatTime(timeLeft);
+                currentRotation = (TOTAL_TIME - timeLeft) * rotationPerSecond;
+                calendarImage.style.transform = `rotate(${currentRotation}deg)`;
+            }
+
+            function tick() {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    timeLeft = 0;
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    Tone.Transport.stop();
+                    collapseSound();
+                    updateDisplay();
+                }
+            }
+
+            function startTimer() {
+                if (isPaused && timeLeft > 0) {
+                    isPaused = false;
+                    Tone.start().then(() => { Tone.Transport.start(); }); 
+                    timerInterval = setInterval(tick, 1000);
+                }
+            }
+
+            function pauseTimer() {
+                if (!isPaused) {
+                    isPaused = true;
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    Tone.Transport.pause();
+                }
+            }
+            
+            // --- Rewind Gesture Functions ---
+            function updateCenter() {
+                const rect = calendarContainer.getBoundingClientRect();
+                center.x = rect.left + rect.width / 2;
+                center.y = rect.top + rect.height / 2;
+            }
+            
+            function handleDragStart(e) {
+                e.preventDefault();
+                updateCenter();
+                isDragging = true;
+                wasDragged = false;
+                pauseTimer(); // Always pause when starting a drag
+                
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                
+                lastAngle = Math.atan2(clientY - center.y, clientX - center.x);
+            }
+
+            function handleDragMove(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                wasDragged = true;
+
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+
+                const currentAngle = Math.atan2(clientY - center.y, clientX - center.x);
+                let angleDelta = currentAngle - lastAngle;
+
+                // Handle angle wrapping (crossing the -180/180 degree boundary)
+                if (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+                if (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+
+                const timeChange = (angleDelta / (2 * Math.PI)) * TOTAL_TIME;
+                
+                timeLeft -= timeChange;
+
+                // Clamp timeLeft between 0 and TOTAL_TIME
+                timeLeft = Math.max(0, Math.min(TOTAL_TIME, timeLeft));
+
+                updateDisplay();
+                lastAngle = currentAngle;
+            }
+
+            function handleDragEnd(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                // If it wasn't a drag, treat it as a click to toggle the timer
+                if (!wasDragged) {
+                    stoneGrind.triggerAttackRelease(0.1);
+                    if (isPaused) {
+                        startTimer();
+                    } else {
+                        // This else will be hit because we paused on drag start
+                        startTimer();
+                    }
+                } else {
+                    // If it was a drag, we just leave the timer paused at the new time
+                     if(timeLeft > 0) isPaused = true;
+                }
+            }
+
+
+            // --- Event Listeners ---
+            calendarContainer.addEventListener('mousedown', handleDragStart);
+            document.addEventListener('mousemove', handleDragMove);
+            document.addEventListener('mouseup', handleDragEnd);
+
+            calendarContainer.addEventListener('touchstart', handleDragStart, { passive: false });
+            document.addEventListener('touchmove', handleDragMove, { passive: false });
+            document.addEventListener('touchend', handleDragEnd);
+
+            window.addEventListener('resize', updateCenter);
+
+
+            // --- Initial Setup ---
+            updateDisplay(); 
+        });
+    </script>
+</body>
+</html>
