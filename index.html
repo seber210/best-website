@@ -8,36 +8,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
     <style>
-        /* Custom font for the timer */
-        .font-cinzel {
-            font-family: 'Cinzel Decorative', cursive;
+        /* New custom font class for the timer */
+        .font-ancient {
+            font-family: 'MedievalSharp', cursive;
         }
 
         /* Main container for the dark, ruinous atmosphere */
         body {
-            background-color: #1a1a1a;
-            background-image:
-                radial-gradient(circle at 20% 20%, rgba(50, 40, 30, 0.4) 0%, transparent 40%),
-                radial-gradient(circle at 80% 70%, rgba(30, 40, 50, 0.4) 0%, transparent 40%);
+            /* Set the new background image */
+            background-image: url('https://static.vecteezy.com/system/resources/previews/050/533/645/non_2x/an-ancient-stone-chamber-with-a-circular-symbol-in-the-center-free-photo.jpeg');
+            background-size: cover; /* Ensure the image covers the whole page */
+            background-position: center; /* Center the image */
+            background-repeat: no-repeat; /* Do not repeat the image */
+            background-color: #1a1a1a; /* Fallback color */
             overflow: hidden; /* Hide overflow to keep elements contained */
             position: relative;
             touch-action: none; /* Prevents scrolling on touch devices while dragging */
-        }
-
-        /* The crumbling temple wall background with vines */
-        #temple-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url('https://www.transparenttextures.com/patterns/cracks.png'), 
-                              url('https://www.transparenttextures.com/patterns/worn-dots.png');
-            background-color: #383428;
-            opacity: 0.2;
-            z-index: -2;
         }
 
         /* Flickering torchlight effect overlay */
@@ -90,15 +78,24 @@
         
         /* Styling for the timer display in the center */
         #timer-display {
-            text-shadow: 0 0 8px rgba(0, 0, 0, 1), 0 0 15px rgba(255, 165, 0, 0.6);
-            color: #FFD700; /* Gold color to match the coin */
+            color: #feeaa5; /* Lighter, brighter gold color */
             user-select: none; /* Prevent text selection */
             pointer-events: none; /* Make sure clicks go through to the container */
+            /* Multi-layered shadow for a strong, glowing, golden effect */
+            text-shadow:
+                /* Inner dark shadow for depth and contrast */
+                0px 2px 3px #1c1403,
+                /* Bright golden glow */
+                0 0 8px #ffc700,
+                0 0 12px #ffc700,
+                /* Wider, softer orange aura */
+                0 0 25px #ff8c00,
+                0 0 40px #ff8c00;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans relative">
-    <div id="temple-background"></div>
+    <!-- Removed the old #temple-background div -->
     <div id="torchlight-overlay"></div>
 
     <main class="flex flex-col lg:flex-row items-center justify-center gap-8 z-10 w-full max-w-6xl">
@@ -111,8 +108,8 @@
                  class="w-full h-auto"
                  onerror="this.onerror=null; this.src='https://placehold.co/500x500/3a362b/ffffff?text=Calendar+Not+Found';">
             
-            <!-- Timer Display -->
-            <div id="timer-display" class="absolute font-cinzel text-6xl md:text-7xl font-bold tracking-widest">
+            <!-- Timer Display with new font class -->
+            <div id="timer-display" class="absolute font-ancient text-6xl md:text-8xl">
                 10:00
             </div>
         </div>
@@ -147,17 +144,24 @@
             }).toDestination();
             stoneGrind.volume.value = -10;
 
-            const tribalDrum = new Tone.MembraneSynth({ /* ... audio setup ... */ }).toDestination();
+            const tribalDrum = new Tone.MembraneSynth({ pitchDecay: 0.02, octaves: 6, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.01, release: 0.4 } }).toDestination();
             tribalDrum.volume.value = -8;
             const drumPattern = new Tone.Sequence((time, note) => { tribalDrum.triggerAttackRelease(note, '8n', time); }, ['C2', ['C2', 'G1'], 'G1', ['C2', 'G1']], '2n').start(0);
-            const eerieFlute = new Tone.Synth({ /* ... audio setup ... */ }).toDestination();
+            const eerieFlute = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.5, decay: 1, sustain: 0.2, release: 2 } }).toDestination();
             eerieFlute.volume.value = -20;
             const flutePattern = new Tone.Sequence((time, note) => { eerieFlute.triggerAttackRelease(note, '1n', time); }, [['E4', 'G4'], 'A4', ['C5', 'A4'], 'G4'], '1m').start('1m');
-            const jungleAmbience = new Tone.NoiseSynth({ /* ... audio setup ... */ }).toDestination();
+            const jungleAmbience = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 4, decay: 2, sustain: 1, release: 5 } }).toDestination();
             jungleAmbience.volume.value = -35;
             const ambienceLoop = new Tone.Loop(time => { jungleAmbience.triggerAttackRelease('4m', time); }, '3m').start(0);
             
-            const collapseSound = () => { /* ... audio setup ... */ };
+            const collapseSound = () => { 
+                const rumble = new Tone.NoiseSynth({ noise: { type: 'brown', playbackRate: 0.5 }, envelope: { attack: 0.1, decay: 3, sustain: 0, release: 2 } }).toDestination();
+                rumble.volume.value = -5;
+                rumble.triggerAttackRelease('3s', Tone.now());
+                const crash = new Tone.MetalSynth({ frequency: 100, envelope: { attack: 0.01, decay: 1.5, release: 1 }, harmonicity: 8.1, modulationIndex: 40, resonance: 2000, octaves: 2 }).toDestination();
+                crash.volume.value = -10;
+                crash.triggerAttack(Tone.now() + 0.2);
+             };
 
             // --- Core Timer Functions ---
             function formatTime(seconds) {
